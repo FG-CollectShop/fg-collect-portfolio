@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FG-CollectShop Portfolio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d1117;
+      --bg-card:   #161b22;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --text-muted:#8b949e;
+      --text-strong:#e6edf3;
+      --accent:    #3fb950;
+      --link:      #58a6ff;
+      --amber:     #d29922;
+      --red:       #f85149;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --font-ui:   -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 20px 80px; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 28px; }
+    header h1 { font-size: 22px; font-weight: 600; color: var(--text-strong); }
+    header h1 span.accent { color: var(--accent); }
+    header p { margin-top: 4px; color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
+    .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+    select { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 4px; }
+    .card-value { font-size: 20px; font-weight: 600; color: var(--text-strong); }
+    .card-sub { font-size: 12px; font-weight: 500; margin-top: 2px; }
+    .green { color: var(--accent); }
+    .red { color: var(--red); }
+    .blue { color: var(--link); }
+    .amber { color: var(--amber); }
+    .muted { color: var(--text-muted); }
+    section h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    thead th { background: #1c2128; color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    thead th.right { text-align: right; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #1c2128; }
+    td { padding: 10px 12px; vertical-align: middle; font-size: 13px; }
+    td.right { text-align: right; }
+    td.name { display: flex; align-items: center; gap: 12px; }
+    td.name img { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--border); border-radius: 4px; background: #0d1117; }
+    td.name .meta { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+    td.name .item-name { color: var(--text-strong); font-weight: 500; }
+    td.name .note { color: var(--text-muted); font-size: 11px; font-style: italic; margin-top: 2px; }
+    .loading { color: var(--text-muted); padding: 40px 0; text-align: center; }
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-align: center; }
+    footer a { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">FG-CollectShop</span> — Public Portfolio</h1>
+    <p id="last-updated">loading…</p>
+  </header>
+
+  <div class="controls">
+    <label style="font-size:12px;color:var(--text-muted);">Filter:</label>
+    <select id="game-filter">
+      <option value="">All games</option>
+      <option value="mtg">MTG</option>
+      <option value="pokemon">Pokémon</option>
+      <option value="weiss">Weiss</option>
+    </select>
+  </div>
+
+  <div id="cards" class="cards"></div>
+
+  <section>
+    <h2>Analytics by Item Type</h2>
+    <div id="analytics"></div>
+  </section>
+
+  <section>
+    <h2>Inventory</h2>
+    <div id="inventory"></div>
+  </section>
+
+  <footer>
+    <span>Read-only view · <a href="https://github.com/FG-CollectShop">github.com/FG-CollectShop</a></span>
+  </footer>
+</div>
+
+<script>
+  const API = "https://api.futuregadgetlabs.com";
+
+  const fmtCents = c => "$" + (c / 100).toFixed(2);
+  const fmtPct   = p => (p == null ? "—" : (p >= 0 ? "+" : "") + p.toFixed(1) + "%");
+  const fmtXIRR  = x => (x == null ? "—" : (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%");
+  const cls      = v => (v == null ? "muted" : v >= 0 ? "green" : "red");
+
+  async function fetchJSON(path) {
+    const resp = await fetch(API + path);
+    if (!resp.ok) throw new Error(resp.status + " " + resp.statusText);
+    return resp.json();
+  }
+
+  function renderCards(summary) {
+    const cards = document.getElementById("cards");
+    const c = summary.cost_basis_cents, m = summary.market_value_cents, l = summary.liquidation_cents;
+    const mp = c > 0 && m > 0 ? (m - c) / c * 100 : null;
+    const lp = c > 0 && l > 0 ? (l - c) / c * 100 : null;
+    cards.innerHTML = `
+      <div class="card"><div class="card-label">Cost Basis</div><div class="card-value">${fmtCents(c)}</div></div>
+      <div class="card"><div class="card-label">Market Value</div><div class="card-value">${fmtCents(m)}</div><div class="card-sub ${cls(mp)}">${fmtPct(mp)}</div></div>
+      <div class="card"><div class="card-label">Liquidation (85%)</div><div class="card-value amber">${fmtCents(l)}</div><div class="card-sub ${cls(lp)}">${fmtPct(lp)}</div></div>
+      <div class="card"><div class="card-label">Portfolio XIRR</div><div class="card-value ${summary.portfolio_xirr == null ? 'muted' : summary.portfolio_xirr >= 0 ? 'blue' : 'red'}">${fmtXIRR(summary.portfolio_xirr)}</div></div>
+    `;
+  }
+
+  function renderAnalytics(groups) {
+    const el = document.getElementById("analytics");
+    if (!groups.length) { el.innerHTML = '<p class="muted" style="padding:16px;">No data.</p>'; return; }
+    el.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Type</th><th class="right">Positions</th><th class="right">Cost</th>
+          <th class="right">Market</th><th class="right">Liquidation</th>
+          <th class="right">% (Market)</th><th class="right">XIRR</th>
+        </tr></thead>
+        <tbody>${groups.map(g => `
+          <tr>
+            <td style="color:var(--text-strong);font-weight:500;">${g.key.replace(/_/g,' ')}</td>
+            <td class="right">${g.count}</td>
+            <td class="right">${fmtCents(g.cost_basis_cents)}</td>
+            <td class="right">${fmtCents(g.market_value_cents)}</td>
+            <td class="right amber">${fmtCents(g.liquidation_cents)}</td>
+            <td class="right ${cls(g.gain_market_pct)}">${fmtPct(g.gain_market_pct)}</td>
+            <td class="right ${cls(g.xirr)}">${fmtXIRR(g.xirr)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderInventory(items) {
+    const el = document.getElementById("inventory");
+    if (!items.length) { el.innerHTML = '<p class="muted" style="padding:16px;">No inventory.</p>'; return; }
+    el.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Item</th><th class="right">Qty</th><th class="right">Cost / unit</th>
+          <th class="right">Market</th><th class="right">Liquidation</th>
+          <th class="right">% (Market)</th><th class="right">XIRR</th><th>Purchased</th>
+        </tr></thead>
+        <tbody>${items.map(i => {
+          const cost = i.unit_cost_basis_cents;
+          const mkt = i.market_price_cents;
+          const mp = mkt != null && cost > 0 ? (mkt - cost) / cost * 100 : null;
+          const link = i.tcgplayer_url ? `<a href="${i.tcgplayer_url}" target="_blank" rel="noopener">${i.name}</a>` : i.name;
+          const img = i.image_url ? `<img src="${i.image_url}" alt="" />` : '<div style="width:40px;height:40px;background:var(--bg);border:1px solid var(--border);border-radius:4px;"></div>';
+          return `
+            <tr>
+              <td class="name">${img}<div><div class="item-name">${link}</div><div class="meta">${i.set_name || i.game} · ${i.item_type.replace(/_/g,' ')}</div>${i.sku_note ? `<div class="note">📝 ${i.sku_note}</div>` : ''}</div></td>
+              <td class="right">${i.quantity_on_hand}</td>
+              <td class="right">${fmtCents(cost)}</td>
+              <td class="right">${mkt != null ? fmtCents(mkt) : '—'}</td>
+              <td class="right amber">${i.liquidation_cents != null ? fmtCents(i.liquidation_cents) : '—'}</td>
+              <td class="right ${cls(mp)}">${fmtPct(mp)}</td>
+              <td class="right ${cls(i.xirr)}">${fmtXIRR(i.xirr)}</td>
+              <td class="muted">${i.purchased_at}</td>
+            </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+  }
+
+  async function load() {
+    const game = document.getElementById("game-filter").value;
+    const q = game ? `?game=${game}` : '';
+    document.getElementById("cards").innerHTML = '<p class="loading">Loading…</p>';
+    document.getElementById("inventory").innerHTML = '';
+    document.getElementById("analytics").innerHTML = '';
+    try {
+      const [summary, inventory, analytics] = await Promise.all([
+        fetchJSON(`/api/v1/public/portfolio/summary${q}`),
+        fetchJSON(`/api/v1/public/portfolio/inventory${q}`),
+        fetchJSON(`/api/v1/public/portfolio/analytics${q}${q ? '&' : '?'}group_by=item_type`),
+      ]);
+      renderCards(summary);
+      renderAnalytics(analytics.groups);
+      renderInventory(inventory.inventory);
+      document.getElementById("last-updated").textContent = `updated ${new Date().toLocaleString()}`;
+    } catch (e) {
+      document.getElementById("cards").innerHTML = `<p class="loading red">Failed to load: ${e.message}</p>`;
+    }
+  }
+
+  document.getElementById("game-filter").addEventListener("change", load);
+  load();
+</script>
+</body>
+</html>
