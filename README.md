@@ -18,3 +18,18 @@ Build settings: none (static). Output directory: `/`.
 
 The API host (`api.futuregadgetlabs.com`) must have `PORTFOLIO_ORIGIN=https://portfolio.futuregadgetlabs.com`
 in its env so CORS lets this page through.
+
+## Access control
+
+`_worker.js` gates every request with HTTP Basic Auth via a Cloudflare Pages
+Function. Configure in Pages project → **Settings → Environment variables**:
+
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `PORTFOLIO_PASSWORD` | Encrypted (secret) | Yes | The password to share with viewers |
+| `PORTFOLIO_USER`     | Plaintext           | No  | Defaults to `portfolio`             |
+
+If `PORTFOLIO_PASSWORD` is unset the site loads with a red warning banner
+instead of leaking — so a misconfigured deploy is loud, not silent. To
+change the password, update the secret and redeploy (Pages picks up new
+values on the next build; a re-deploy of the latest commit is enough).
